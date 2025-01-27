@@ -23,6 +23,7 @@ func main() {
 	mux.HandleFunc("POST /users", createUser)
 	mux.HandleFunc("GET /users/{id}", getUser)
 	mux.HandleFunc("DELETE /users/{id}", deleteUser)
+	mux.HandleFunc("PUT /users/{id}", updateUser)
 
 	fmt.Println("Server is running on port 8080")
 
@@ -31,6 +32,40 @@ func main() {
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello World")
+}
+
+func updateUser(w http.ResponseWriter, r *http.Request) {
+	var user User
+
+	id, err := strconv.Atoi(r.PathValue("id"))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	errs := json.NewDecoder(r.Body).Decode(&user)
+
+	if errs != nil {
+		http.Error(w, "Please pass a valid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if user.Name == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+
+	if _, ok := userCache[id]; !ok {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	cacheMutex.Lock()
+	userCache[id] = user
+	cacheMutex.Unlock()
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
